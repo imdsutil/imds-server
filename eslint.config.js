@@ -28,4 +28,10 @@ export default [
       "n/no-unpublished-import": "off",
     },
   },
+  {
+    files: ["test/**/*.js"],
+    rules: {
+      "n/no-unsupported-features/node-builtins": "off",
+    },
+  },
 ];

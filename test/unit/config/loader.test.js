@@ -1,7 +1,13 @@
 import { describe, it } from "node:test";
+import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import assert from "node:assert/strict";
-import { parseCli, loadConfig } from "../../../src/config/loader.js";
+import { parseCli, loadConfig, loadConfigFile } from "../../../src/config/loader.js";
 import defaults from "../../../src/config/defaults.js";
+
+// Isolated env: no IMDS_ vars leak from the real environment
+const cleanEnv = {};
 
 describe("config/loader", () => {
   describe("parseCli", () => {
@@ -57,74 +63,326 @@ describe("config/loader", () => {
     });
   });
 
-  describe("loadConfig", () => {
+  describe("loadConfig - CLI layer", () => {
     it("returns defaults when no CLI values provided", () => {
-      const config = loadConfig({});
+      const config = loadConfig({}, cleanEnv);
       assert.deepStrictEqual(config, defaults);
     });
 
     it("returns a frozen object", () => {
-      const config = loadConfig({});
+      const config = loadConfig({}, cleanEnv);
       assert.ok(Object.isFrozen(config));
     });
 
     it("merges CLI port over default", () => {
-      const config = loadConfig({ port: "8080" });
+      const config = loadConfig({ port: "8080" }, cleanEnv);
       assert.equal(config.port, 8080);
       assert.equal(config.host, defaults.host);
     });
 
     it("merges CLI host over default", () => {
-      const config = loadConfig({ host: "0.0.0.0" });
+      const config = loadConfig({ host: "0.0.0.0" }, cleanEnv);
       assert.equal(config.host, "0.0.0.0");
       assert.equal(config.port, defaults.port);
     });
 
     it("merges CLI log-level with coercion to lowercase", () => {
-      const config = loadConfig({ "log-level": "DEBUG" });
+      const config = loadConfig({ "log-level": "DEBUG" }, cleanEnv);
       assert.equal(config.logLevel, "debug");
     });
 
     it("merges CLI token-ttl with number coercion", () => {
-      const config = loadConfig({ "token-ttl": "300" });
+      const config = loadConfig({ "token-ttl": "300" }, cleanEnv);
       assert.equal(config.tokenTtl, 300);
     });
 
     it("merges CLI socket", () => {
-      const config = loadConfig({ socket: "/tmp/imds.sock" });
+      const config = loadConfig({ socket: "/tmp/imds.sock" }, cleanEnv);
       assert.equal(config.socket, "/tmp/imds.sock");
     });
 
     it("throws on invalid port", () => {
-      assert.throws(() => loadConfig({ port: "99999" }), /port must be an integer/);
+      assert.throws(() => loadConfig({ port: "99999" }, cleanEnv), /port must be an integer/);
     });
 
     it("throws on invalid log level", () => {
-      assert.throws(() => loadConfig({ "log-level": "verbose" }), /logLevel must be one of/);
+      assert.throws(
+        () => loadConfig({ "log-level": "verbose" }, cleanEnv),
+        /logLevel must be one of/,
+      );
     });
 
     it("throws when socket and host are both set", () => {
       assert.throws(
-        () => loadConfig({ socket: "/tmp/imds.sock", host: "0.0.0.0" }),
+        () => loadConfig({ socket: "/tmp/imds.sock", host: "0.0.0.0" }, cleanEnv),
         /mutually exclusive/,
       );
     });
 
     it("throws when socket and port are both set", () => {
       assert.throws(
-        () => loadConfig({ socket: "/tmp/imds.sock", port: "8080" }),
+        () => loadConfig({ socket: "/tmp/imds.sock", port: "8080" }, cleanEnv),
         /mutually exclusive/,
       );
     });
 
     it("allows socket without host/port flags", () => {
-      const config = loadConfig({ socket: "/tmp/imds.sock" });
+      const config = loadConfig({ socket: "/tmp/imds.sock" }, cleanEnv);
       assert.equal(config.socket, "/tmp/imds.sock");
     });
 
     it("ignores help and version flags", () => {
-      const config = loadConfig({ help: true });
+      const config = loadConfig({ help: true }, cleanEnv);
       assert.ok(!("help" in config) || config.help === undefined);
+    });
+  });
+
+  describe("loadConfig - env var layer", () => {
+    it("reads IMDS_PORT from env", () => {
+      const config = loadConfig({}, { IMDS_PORT: "3000" });
+      assert.equal(config.port, 3000);
+    });
+
+    it("reads IMDS_HOST from env", () => {
+      const config = loadConfig({}, { IMDS_HOST: "0.0.0.0" });
+      assert.equal(config.host, "0.0.0.0");
+    });
+
+    it("reads IMDS_LOG_LEVEL from env", () => {
+      const config = loadConfig({}, { IMDS_LOG_LEVEL: "warn" });
+      assert.equal(config.logLevel, "warn");
+    });
+
+    it("reads IMDS_SOCKET from env", () => {
+      const config = loadConfig({}, { IMDS_SOCKET: "/tmp/imds.sock" });
+      assert.equal(config.socket, "/tmp/imds.sock");
+    });
+
+    it("reads IMDS_TOKEN_TTL from env", () => {
+      const config = loadConfig({}, { IMDS_TOKEN_TTL: "600" });
+      assert.equal(config.tokenTtl, 600);
+    });
+
+    it("ignores unrelated env vars", () => {
+      const config = loadConfig({}, { SOME_OTHER_VAR: "whatever" });
+      assert.deepStrictEqual(config, defaults);
+    });
+
+    it("env vars override defaults", () => {
+      const config = loadConfig({}, { IMDS_PORT: "9090" });
+      assert.equal(config.port, 9090);
+    });
+
+    it("CLI overrides env vars", () => {
+      const config = loadConfig({ port: "8080" }, { IMDS_PORT: "9090" });
+      assert.equal(config.port, 8080);
+    });
+
+    it("detects mutual exclusion across env vars", () => {
+      assert.throws(
+        () => loadConfig({}, { IMDS_SOCKET: "/tmp/imds.sock", IMDS_PORT: "8080" }),
+        /mutually exclusive/,
+      );
+    });
+
+    it("detects mutual exclusion across CLI and env", () => {
+      assert.throws(
+        () => loadConfig({ socket: "/tmp/imds.sock" }, { IMDS_PORT: "8080" }),
+        /mutually exclusive/,
+      );
+    });
+  });
+
+  describe("loadConfigFile", () => {
+    let tmpDir;
+
+    function setup() {
+      tmpDir = mkdtempSync(join(tmpdir(), "imds-test-"));
+    }
+
+    function teardown() {
+      rmSync(tmpDir, { recursive: true });
+    }
+
+    it("parses a valid YAML config file", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "port: 3000\nlogLevel: debug\n");
+        const result = loadConfigFile(filePath);
+        assert.equal(result.port, 3000);
+        assert.equal(result.logLevel, "debug");
+      } finally {
+        teardown();
+      }
+    });
+
+    it("returns empty object for empty file", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "");
+        const result = loadConfigFile(filePath);
+        assert.deepStrictEqual(result, {});
+      } finally {
+        teardown();
+      }
+    });
+
+    it("ignores unknown keys", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "port: 3000\nunknownKey: value\n");
+        const result = loadConfigFile(filePath);
+        assert.equal(result.port, 3000);
+        assert.ok(!("unknownKey" in result));
+      } finally {
+        teardown();
+      }
+    });
+
+    it("throws on missing file", () => {
+      assert.throws(() => loadConfigFile("/nonexistent/config.yml"), /Config file not found/);
+    });
+
+    it("throws on invalid YAML", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "port: [\ninvalid yaml");
+        assert.throws(() => loadConfigFile(filePath), /Invalid YAML/);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("throws when file contains a non-mapping type", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "- item1\n- item2\n");
+        assert.throws(() => loadConfigFile(filePath), /must contain a YAML mapping/);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("coerces values through the schema", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, 'port: "8080"\n');
+        const result = loadConfigFile(filePath);
+        assert.equal(result.port, 8080);
+        assert.equal(typeof result.port, "number");
+      } finally {
+        teardown();
+      }
+    });
+  });
+
+  describe("loadConfig - config file layer", () => {
+    let tmpDir;
+
+    function setup() {
+      tmpDir = mkdtempSync(join(tmpdir(), "imds-test-"));
+    }
+
+    function teardown() {
+      rmSync(tmpDir, { recursive: true });
+    }
+
+    it("loads config from file specified by CLI --config", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "port: 4000\n");
+        const config = loadConfig({ config: filePath }, cleanEnv);
+        assert.equal(config.port, 4000);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("loads config from file specified by IMDS_CONFIG_FILE env var", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "port: 4000\n");
+        const config = loadConfig({}, { IMDS_CONFIG_FILE: filePath });
+        assert.equal(config.port, 4000);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("CLI --config takes priority over IMDS_CONFIG_FILE", () => {
+      setup();
+      try {
+        const cliFile = join(tmpDir, "cli.yml");
+        const envFile = join(tmpDir, "env.yml");
+        writeFileSync(cliFile, "port: 1111\n");
+        writeFileSync(envFile, "port: 2222\n");
+        const config = loadConfig({ config: cliFile }, { IMDS_CONFIG_FILE: envFile });
+        assert.equal(config.port, 1111);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("config file values override defaults", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "logLevel: debug\n");
+        const config = loadConfig({ config: filePath }, cleanEnv);
+        assert.equal(config.logLevel, "debug");
+      } finally {
+        teardown();
+      }
+    });
+
+    it("env vars override config file values", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "port: 4000\n");
+        const config = loadConfig({}, { IMDS_CONFIG_FILE: filePath, IMDS_PORT: "5000" });
+        assert.equal(config.port, 5000);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("CLI overrides config file values", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "port: 4000\n");
+        const config = loadConfig({ config: filePath, port: "6000" }, cleanEnv);
+        assert.equal(config.port, 6000);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("throws when --config points to missing file", () => {
+      assert.throws(
+        () => loadConfig({ config: "/nonexistent/config.yml" }, cleanEnv),
+        /Config file not found/,
+      );
+    });
+
+    it("detects mutual exclusion from config file keys", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "socket: /tmp/imds.sock\nport: 8080\n");
+        assert.throws(() => loadConfig({ config: filePath }, cleanEnv), /mutually exclusive/);
+      } finally {
+        teardown();
+      }
     });
   });
 });

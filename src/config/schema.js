@@ -124,6 +124,19 @@ export function extractCliValues(parsedValues) {
   return result;
 }
 
+// Extract config values from environment variables
+export function extractEnvValues(env = process.env) {
+  const result = {};
+
+  for (const [key, def] of Object.entries(schema)) {
+    const raw = env[def.envVar];
+    if (raw === undefined) continue;
+    result[key] = def.coerce(raw);
+  }
+
+  return result;
+}
+
 // Validate a complete config object. Throws on first validation error.
 export function validate(config) {
   // Per-key validation

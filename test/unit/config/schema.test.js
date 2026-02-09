@@ -5,6 +5,7 @@ import {
   LOG_LEVELS,
   buildParseArgsOptions,
   extractCliValues,
+  extractEnvValues,
   validate,
   validateMutualExclusion,
 } from "../../../src/config/schema.js";
@@ -86,6 +87,30 @@ describe("config/schema", () => {
     it("returns empty object when no flags match", () => {
       const result = extractCliValues({});
       assert.deepStrictEqual(result, {});
+    });
+  });
+
+  describe("extractEnvValues", () => {
+    it("extracts known IMDS_ env vars with coercion", () => {
+      const result = extractEnvValues({ IMDS_PORT: "3000", IMDS_LOG_LEVEL: "WARN" });
+      assert.equal(result.port, 3000);
+      assert.equal(result.logLevel, "warn");
+    });
+
+    it("ignores non-IMDS env vars", () => {
+      const result = extractEnvValues({ PATH: "/usr/bin", HOME: "/home/user" });
+      assert.deepStrictEqual(result, {});
+    });
+
+    it("returns empty object for empty env", () => {
+      const result = extractEnvValues({});
+      assert.deepStrictEqual(result, {});
+    });
+
+    it("extracts string values without coercion issues", () => {
+      const result = extractEnvValues({ IMDS_HOST: "10.0.0.1", IMDS_SOCKET: "/tmp/test.sock" });
+      assert.equal(result.host, "10.0.0.1");
+      assert.equal(result.socket, "/tmp/test.sock");
     });
   });
 

@@ -20,8 +20,8 @@ describe("config/defaults", () => {
       "socket",
       "tokenTtl",
       "configFile",
-      "configCommand",
-      "configCommandTimeout",
+      "handlerCommand",
+      "handlerCommandTimeout",
       "logLevel",
     ];
     assert.deepStrictEqual(Object.keys(defaults).sort(), expectedKeys.sort());
@@ -33,8 +33,8 @@ describe("config/defaults", () => {
     assert.equal(defaults.socket, null);
     assert.equal(defaults.tokenTtl, 21600);
     assert.equal(defaults.configFile, null);
-    assert.equal(defaults.configCommand, null);
-    assert.equal(defaults.configCommandTimeout, 5000);
+    assert.equal(defaults.handlerCommand, null);
+    assert.equal(defaults.handlerCommandTimeout, 5000);
     assert.equal(defaults.logLevel, "info");
   });
 });

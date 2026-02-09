@@ -19,8 +19,8 @@ describe("config/schema", () => {
         "socket",
         "tokenTtl",
         "configFile",
-        "configCommand",
-        "configCommandTimeout",
+        "handlerCommand",
+        "handlerCommandTimeout",
         "logLevel",
       ];
       assert.deepStrictEqual(Object.keys(schema).sort(), expectedKeys.sort());
@@ -67,7 +67,7 @@ describe("config/schema", () => {
       const options = buildParseArgsOptions();
       assert.equal(options.port.type, "string");
       assert.equal(options["token-ttl"].type, "string");
-      assert.equal(options["config-command-timeout"].type, "string");
+      assert.equal(options["handler-command-timeout"].type, "string");
     });
   });
 
@@ -123,8 +123,8 @@ describe("config/schema", () => {
           socket: null,
           tokenTtl: 300,
           configFile: null,
-          configCommand: null,
-          configCommandTimeout: 5000,
+          handlerCommand: null,
+          handlerCommandTimeout: 5000,
           logLevel: "info",
         }),
       );
@@ -139,8 +139,8 @@ describe("config/schema", () => {
             socket: null,
             tokenTtl: 300,
             configFile: null,
-            configCommand: null,
-            configCommandTimeout: 5000,
+            handlerCommand: null,
+            handlerCommandTimeout: 5000,
             logLevel: "info",
           }),
         /port must be an integer between 1 and 65535/,
@@ -156,8 +156,8 @@ describe("config/schema", () => {
             socket: null,
             tokenTtl: 300,
             configFile: null,
-            configCommand: null,
-            configCommandTimeout: 5000,
+            handlerCommand: null,
+            handlerCommandTimeout: 5000,
             logLevel: "info",
           }),
         /port must be an integer/,
@@ -173,8 +173,8 @@ describe("config/schema", () => {
             socket: null,
             tokenTtl: 300,
             configFile: null,
-            configCommand: null,
-            configCommandTimeout: 5000,
+            handlerCommand: null,
+            handlerCommandTimeout: 5000,
             logLevel: "verbose",
           }),
         /logLevel must be one of/,
@@ -190,8 +190,8 @@ describe("config/schema", () => {
             socket: null,
             tokenTtl: 99999,
             configFile: null,
-            configCommand: null,
-            configCommandTimeout: 5000,
+            handlerCommand: null,
+            handlerCommandTimeout: 5000,
             logLevel: "info",
           }),
         /tokenTtl must be an integer between 1 and 21600/,
@@ -207,8 +207,8 @@ describe("config/schema", () => {
             socket: null,
             tokenTtl: 300,
             configFile: null,
-            configCommand: null,
-            configCommandTimeout: 5000,
+            handlerCommand: null,
+            handlerCommandTimeout: 5000,
             logLevel: "info",
           }),
         /host must be a non-empty string/,
@@ -223,8 +223,8 @@ describe("config/schema", () => {
           socket: null,
           tokenTtl: 300,
           configFile: null,
-          configCommand: null,
-          configCommandTimeout: 5000,
+          handlerCommand: null,
+          handlerCommandTimeout: 5000,
           logLevel: "info",
         }),
       );

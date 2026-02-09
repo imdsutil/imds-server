@@ -1,6 +1,5 @@
 // Config loader: resolves configuration from multiple sources in priority order.
 // CLI args > env vars > config file > defaults.
-// External command layer will be added in a future update.
 
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
@@ -49,7 +48,6 @@ export function loadConfigFile(filePath) {
     throw new Error(`Config file ${filePath} must contain a YAML mapping, not ${typeof parsed}`);
   }
 
-  // Coerce values through the schema
   const result = {};
   for (const [key, value] of Object.entries(parsed)) {
     if (!(key in schema)) continue;
@@ -59,18 +57,16 @@ export function loadConfigFile(filePath) {
   return result;
 }
 
-// Merge config layers in priority order: CLI > env > file > defaults.
-// explicitKeys tracks keys set by any source above defaults, used for
-// mutual exclusion validation.
+// Merge config layers in priority order:
+// CLI > env > file > defaults.
 export function loadConfig(cliValues = {}, env = process.env) {
   const cliConfig = extractCliValues(cliValues);
   const envConfig = extractEnvValues(env);
 
-  // Determine config file path: CLI flag takes priority over env var
+  // Determine config file path: CLI > env > default
   const configFilePath = cliConfig.configFile ?? envConfig.configFile ?? defaults.configFile;
   const fileConfig = configFilePath ? loadConfigFile(configFilePath) : {};
 
-  // Track all explicitly-set keys across layers (everything except defaults)
   const explicitKeys = new Set([
     ...Object.keys(cliConfig),
     ...Object.keys(envConfig),

@@ -24,8 +24,8 @@ Options:
   --socket <path>                Unix domain socket path (mutually exclusive with --host/--port)
   --token-ttl <seconds>          Default IMDSv2 token TTL (default: 21600)
   --config <path>                Path to YAML config file
-  --config-command <cmd>         External command for dynamic config (stdout must be JSON)
-  --config-command-timeout <ms>  Timeout for config command in ms (default: 5000)
+  --handler-command <cmd>        External command invoked per-request to generate responses
+  --handler-command-timeout <ms> Timeout for handler command in ms (default: 5000)
   --log-level <level>            Log level: debug, info, warn, error (default: info)
   -h, --help                     Show this help message
   -v, --version                  Show version number

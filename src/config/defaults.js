@@ -7,8 +7,8 @@ const defaults = Object.freeze({
   socket: null,
   tokenTtl: 21600,
   configFile: null,
-  configCommand: null,
-  configCommandTimeout: 5000,
+  handlerCommand: null,
+  handlerCommandTimeout: 5000,
   logLevel: "info",
 });
 

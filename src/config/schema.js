@@ -58,25 +58,25 @@ const schema = {
         ? null
         : "configFile must be a non-empty string or null",
   },
-  configCommand: {
+  handlerCommand: {
     type: "string",
-    cliFlag: "config-command",
-    envVar: "IMDS_CONFIG_COMMAND",
+    cliFlag: "handler-command",
+    envVar: "IMDS_HANDLER_COMMAND",
     coerce: String,
     validate: (v) =>
       v === null || (typeof v === "string" && v.length > 0)
         ? null
-        : "configCommand must be a non-empty string or null",
+        : "handlerCommand must be a non-empty string or null",
   },
-  configCommandTimeout: {
+  handlerCommandTimeout: {
     type: "number",
-    cliFlag: "config-command-timeout",
-    envVar: "IMDS_CONFIG_COMMAND_TIMEOUT",
+    cliFlag: "handler-command-timeout",
+    envVar: "IMDS_HANDLER_COMMAND_TIMEOUT",
     coerce: Number,
     validate: (v) =>
       Number.isInteger(v) && v >= 100 && v <= 30000
         ? null
-        : "configCommandTimeout must be an integer between 100 and 30000 (ms)",
+        : "handlerCommandTimeout must be an integer between 100 and 30000 (ms)",
   },
   logLevel: {
     type: "string",

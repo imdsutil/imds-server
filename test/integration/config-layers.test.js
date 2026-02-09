@@ -60,17 +60,17 @@ describe("config layer priority (integration)", () => {
     }
   });
 
-  it("CLI args override both env vars and config file", () => {
+  it("CLI args override all other layers", () => {
     setup();
     try {
       const configPath = join(tmpDir, "config.yml");
       writeFileSync(configPath, "port: 3000\nlogLevel: debug\nhost: 10.0.0.1\n");
 
       const cliValues = parseCli(["--config", configPath, "--port", "5000"]);
-      const config = loadConfig(cliValues, { IMDS_LOG_LEVEL: "error" });
+      const config = loadConfig(cliValues, { IMDS_LOG_LEVEL: "warn" });
 
-      assert.equal(config.port, 5000, "CLI should override config file");
-      assert.equal(config.logLevel, "error", "env var should override config file");
+      assert.equal(config.port, 5000, "CLI should override all");
+      assert.equal(config.logLevel, "warn", "env should override file");
       assert.equal(config.host, "10.0.0.1", "config file should apply for non-overridden keys");
     } finally {
       teardown();
@@ -87,16 +87,16 @@ describe("config layer priority (integration)", () => {
       );
 
       const cliValues = parseCli(["--config", configPath, "--port", "2222"]);
-      const env = { IMDS_LOG_LEVEL: "warn", IMDS_TOKEN_TTL: "900" };
+      const env = { IMDS_LOG_LEVEL: "warn" };
       const config = loadConfig(cliValues, env);
 
-      assert.equal(config.port, 2222, "CLI wins over file");
+      assert.equal(config.port, 2222, "CLI wins over everything");
       assert.equal(config.logLevel, "warn", "env wins over file");
-      assert.equal(config.tokenTtl, 900, "env wins over file");
       assert.equal(config.host, "10.0.0.1", "file wins over default");
+      assert.equal(config.tokenTtl, 600, "file wins over default for tokenTtl");
       assert.equal(
-        config.configCommandTimeout,
-        defaults.configCommandTimeout,
+        config.handlerCommandTimeout,
+        defaults.handlerCommandTimeout,
         "default used when no override",
       );
     } finally {

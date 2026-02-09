@@ -6,7 +6,6 @@ import assert from "node:assert/strict";
 import { parseCli, loadConfig, loadConfigFile } from "../../../src/config/loader.js";
 import defaults from "../../../src/config/defaults.js";
 
-// Isolated env: no IMDS_ vars leak from the real environment
 const cleanEnv = {};
 
 describe("config/loader", () => {

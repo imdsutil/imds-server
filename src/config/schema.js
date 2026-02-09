@@ -48,6 +48,14 @@ const schema = {
         ? null
         : "tokenTtl must be an integer between 1 and 21600",
   },
+  imdsVersion: {
+    type: "string",
+    cliFlag: "imds-version",
+    envVar: "IMDS_VERSION",
+    coerce: String,
+    validate: (v) =>
+      ["1", "2", "auto"].includes(v) ? null : 'imdsVersion must be "1", "2", or "auto"',
+  },
   configFile: {
     type: "string",
     cliFlag: "config",

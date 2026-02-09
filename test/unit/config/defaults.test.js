@@ -19,6 +19,7 @@ describe("config/defaults", () => {
       "port",
       "socket",
       "tokenTtl",
+      "imdsVersion",
       "configFile",
       "handlerCommand",
       "handlerCommandTimeout",
@@ -32,6 +33,7 @@ describe("config/defaults", () => {
     assert.equal(defaults.port, 80);
     assert.equal(defaults.socket, null);
     assert.equal(defaults.tokenTtl, 21600);
+    assert.equal(defaults.imdsVersion, "auto");
     assert.equal(defaults.configFile, null);
     assert.equal(defaults.handlerCommand, null);
     assert.equal(defaults.handlerCommandTimeout, 5000);

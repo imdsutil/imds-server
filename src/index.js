@@ -4,9 +4,10 @@ import { dirname, join } from "node:path";
 import { parseCli, loadConfig } from "./config/loader.js";
 import { createLogger } from "./util/logger.js";
 import { createImdsServer } from "./server/create-server.js";
-import { withMiddleware } from "./server/middleware.js";
+import { withMiddleware, validateTokenRequirement } from "./server/middleware.js";
 import { Router } from "./server/router.js";
 import { HANDLERS, notFoundHandler } from "./handlers/index.js";
+import { TokenStore } from "./session/token-store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +29,7 @@ Options:
   --port <port>                  TCP bind port (default: 80)
   --socket <path>                Unix domain socket path (mutually exclusive with --host/--port)
   --token-ttl <seconds>          Default IMDSv2 token TTL (default: 21600)
+  --imds-version <version>       IMDS version: 1, 2, or auto (default: auto)
   --config <path>                Path to YAML config file
   --handler-command <cmd>        External command invoked per-request to generate responses
   --handler-command-timeout <ms> Timeout for handler command in ms (default: 5000)
@@ -51,11 +53,22 @@ if (cliValues.help) {
   const config = loadConfig(cliValues);
   const logger = createLogger(config.logLevel);
 
+  // Create token store for IMDSv2 session authentication
+  const tokenStore = new TokenStore();
+
   // Create router and routing handler that dispatches requests to registered handlers.
   // Handles 404 (path not found), 405 (method not allowed), and successful routing.
   const router = new Router(HANDLERS);
 
   const routingHandler = async (req, res) => {
+    // Validate token requirement based on IMDS version mode
+    const tokenError = validateTokenRequirement(req, config, tokenStore);
+    if (tokenError) {
+      res.writeHead(tokenError, { "Content-Type": "text/plain" });
+      res.end(tokenError === 401 ? "Unauthorized\n" : "Forbidden\n");
+      return;
+    }
+
     const match = router.match(req.method, req.url);
 
     if (!match) {
@@ -78,6 +91,7 @@ if (cliValues.help) {
     await match.handler(req, res, {
       logger,
       config,
+      tokenStore,
       pathRemainder: match.pathRemainder,
     });
   };
@@ -87,9 +101,10 @@ if (cliValues.help) {
 
   await start();
 
-  // Basic shutdown: stop accepting connections on SIGINT/SIGTERM
+  // Basic shutdown: stop accepting connections and cleanup resources on SIGINT/SIGTERM
   function shutdown(signal) {
     logger.info("Shutting down", { signal });
+    tokenStore.close();
     close().then(() => {
       process.exitCode = 0;
     });

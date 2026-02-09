@@ -6,6 +6,7 @@ const defaults = Object.freeze({
   port: 80,
   socket: null,
   tokenTtl: 21600,
+  imdsVersion: "auto",
   configFile: null,
   handlerCommand: null,
   handlerCommandTimeout: 5000,

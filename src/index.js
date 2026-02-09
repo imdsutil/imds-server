@@ -5,6 +5,8 @@ import { parseCli, loadConfig } from "./config/loader.js";
 import { createLogger } from "./util/logger.js";
 import { createImdsServer } from "./server/create-server.js";
 import { withMiddleware } from "./server/middleware.js";
+import { Router } from "./server/router.js";
+import { HANDLERS, notFoundHandler } from "./handlers/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -49,13 +51,38 @@ if (cliValues.help) {
   const config = loadConfig(cliValues);
   const logger = createLogger(config.logLevel);
 
-  // Placeholder handler until routing is implemented
-  function placeholderHandler(req, res) {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("OK\n");
-  }
+  // Create router and routing handler that dispatches requests to registered handlers.
+  // Handles 404 (path not found), 405 (method not allowed), and successful routing.
+  const router = new Router(HANDLERS);
 
-  const handler = withMiddleware(placeholderHandler, logger);
+  const routingHandler = async (req, res) => {
+    const match = router.match(req.method, req.url);
+
+    if (!match) {
+      // No path matches—issue 404
+      await notFoundHandler(req, res, { logger, config });
+      return;
+    }
+
+    if (match.status === 405) {
+      // Path matched but method didn't—issue 405 with Allow header
+      res.writeHead(405, {
+        Allow: match.allowed.join(", "),
+        "Content-Type": "text/plain",
+      });
+      res.end("Method Not Allowed\n");
+      return;
+    }
+
+    // Path and method matched—invoke handler with context
+    await match.handler(req, res, {
+      logger,
+      config,
+      pathRemainder: match.pathRemainder,
+    });
+  };
+
+  const handler = withMiddleware(routingHandler, logger);
   const { start, close } = createImdsServer(config, handler, logger);
 
   await start();

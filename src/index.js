@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parseCli, loadConfig } from "./config/loader.js";
+import { createLogger } from "./util/logger.js";
+import { createImdsServer } from "./server/create-server.js";
+import { withMiddleware } from "./server/middleware.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -44,7 +47,27 @@ if (cliValues.help) {
   process.exitCode = 0;
 } else {
   const config = loadConfig(cliValues);
+  const logger = createLogger(config.logLevel);
 
-  // TODO: start server with resolved config
-  console.log(JSON.stringify({ message: "Config loaded", config }, null, 2));
+  // Placeholder handler until routing is implemented
+  function placeholderHandler(req, res) {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("OK\n");
+  }
+
+  const handler = withMiddleware(placeholderHandler, logger);
+  const { start, close } = createImdsServer(config, handler, logger);
+
+  await start();
+
+  // Basic shutdown: stop accepting connections on SIGINT/SIGTERM
+  function shutdown(signal) {
+    logger.info("Shutting down", { signal });
+    close().then(() => {
+      process.exitCode = 0;
+    });
+  }
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 }

@@ -97,8 +97,5 @@ export function executeHandler(command, request, options) {
         resolve({ status: "error", stdout, stderr, timedOut: false });
       }
     });
-
-    // Unref the child so it doesn't keep the parent process alive
-    child.unref();
   });
 }

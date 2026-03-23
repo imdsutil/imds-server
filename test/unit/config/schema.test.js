@@ -20,8 +20,7 @@ describe("config/schema", () => {
         "tokenTtl",
         "imdsVersion",
         "configFile",
-        "handlerCommand",
-        "handlerCommandTimeout",
+        "handlerTimeout",
         "logLevel",
       ];
       assert.deepStrictEqual(Object.keys(schema).sort(), expectedKeys.sort());
@@ -68,7 +67,7 @@ describe("config/schema", () => {
       const options = buildParseArgsOptions();
       assert.equal(options.port.type, "string");
       assert.equal(options["token-ttl"].type, "string");
-      assert.equal(options["handler-command-timeout"].type, "string");
+      assert.equal(options["handler-timeout"].type, "string");
     });
   });
 
@@ -125,8 +124,7 @@ describe("config/schema", () => {
           tokenTtl: 300,
           imdsVersion: "auto",
           configFile: null,
-          handlerCommand: null,
-          handlerCommandTimeout: 5000,
+          handlerTimeout: 5000,
           logLevel: "info",
         }),
       );
@@ -142,8 +140,7 @@ describe("config/schema", () => {
             tokenTtl: 300,
             imdsVersion: "auto",
             configFile: null,
-            handlerCommand: null,
-            handlerCommandTimeout: 5000,
+            handlerTimeout: 5000,
             logLevel: "info",
           }),
         /port must be an integer between 1 and 65535/,
@@ -160,8 +157,7 @@ describe("config/schema", () => {
             tokenTtl: 300,
             imdsVersion: "auto",
             configFile: null,
-            handlerCommand: null,
-            handlerCommandTimeout: 5000,
+            handlerTimeout: 5000,
             logLevel: "info",
           }),
         /port must be an integer/,
@@ -178,8 +174,7 @@ describe("config/schema", () => {
             tokenTtl: 300,
             imdsVersion: "auto",
             configFile: null,
-            handlerCommand: null,
-            handlerCommandTimeout: 5000,
+            handlerTimeout: 5000,
             logLevel: "verbose",
           }),
         /logLevel must be one of/,
@@ -196,8 +191,7 @@ describe("config/schema", () => {
             tokenTtl: 99999,
             imdsVersion: "auto",
             configFile: null,
-            handlerCommand: null,
-            handlerCommandTimeout: 5000,
+            handlerTimeout: 5000,
             logLevel: "info",
           }),
         /tokenTtl must be an integer between 1 and 21600/,
@@ -214,8 +208,7 @@ describe("config/schema", () => {
             tokenTtl: 300,
             imdsVersion: "auto",
             configFile: null,
-            handlerCommand: null,
-            handlerCommandTimeout: 5000,
+            handlerTimeout: 5000,
             logLevel: "info",
           }),
         /host must be a non-empty string/,
@@ -231,8 +224,7 @@ describe("config/schema", () => {
           tokenTtl: 300,
           imdsVersion: "auto",
           configFile: null,
-          handlerCommand: null,
-          handlerCommandTimeout: 5000,
+          handlerTimeout: 5000,
           logLevel: "info",
         }),
       );

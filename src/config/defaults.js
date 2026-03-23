@@ -7,9 +7,9 @@ const defaults = Object.freeze({
   socket: null,
   tokenTtl: 21600,
   imdsVersion: "auto",
-  configFile: null,
-  handlerCommand: null,
-  handlerCommandTimeout: 5000,
+  configFile: "~/.imds-server.yml",
+  handlers: [],
+  handlerTimeout: 5000,
   logLevel: "info",
 });
 

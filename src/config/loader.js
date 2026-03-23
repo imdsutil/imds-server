@@ -2,6 +2,7 @@
 // CLI args > env vars > config file > defaults.
 
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import defaults from "./defaults.js";
@@ -10,6 +11,7 @@ import {
   extractCliValues,
   extractEnvValues,
   validate,
+  validateHandlers,
   validateMutualExclusion,
   schema,
 } from "./schema.js";
@@ -50,6 +52,10 @@ export function loadConfigFile(filePath) {
 
   const result = {};
   for (const [key, value] of Object.entries(parsed)) {
+    if (key === "handlers") {
+      result.handlers = value;
+      continue;
+    }
     if (!(key in schema)) continue;
     result[key] = schema[key].coerce(value);
   }
@@ -64,8 +70,24 @@ export function loadConfig(cliValues = {}, env = process.env) {
   const envConfig = extractEnvValues(env);
 
   // Determine config file path: CLI > env > default
-  const configFilePath = cliConfig.configFile ?? envConfig.configFile ?? defaults.configFile;
-  const fileConfig = configFilePath ? loadConfigFile(configFilePath) : {};
+  const explicitConfigFile = cliConfig.configFile ?? envConfig.configFile;
+  const rawConfigPath = explicitConfigFile ?? defaults.configFile;
+  const configFilePath = rawConfigPath?.startsWith("~/")
+    ? homedir() + rawConfigPath.slice(1)
+    : rawConfigPath;
+
+  let fileConfig = {};
+  if (configFilePath) {
+    try {
+      fileConfig = loadConfigFile(configFilePath);
+    } catch (err) {
+      // Only swallow missing file errors for the default path.
+      // If the user explicitly set a config file, let it throw.
+      if (explicitConfigFile || !err.message.includes("not found")) {
+        throw err;
+      }
+    }
+  }
 
   const explicitKeys = new Set([
     ...Object.keys(cliConfig),
@@ -73,15 +95,20 @@ export function loadConfig(cliValues = {}, env = process.env) {
     ...Object.keys(fileConfig),
   ]);
 
+  // Handlers come from config file only (not CLI/env).
+  const handlers = fileConfig.handlers ?? defaults.handlers;
+
   const config = {
     ...defaults,
     ...fileConfig,
     ...envConfig,
     ...cliConfig,
+    handlers,
   };
 
   validateMutualExclusion(explicitKeys);
   validate(config);
+  validateHandlers(config.handlers);
 
   return Object.freeze(config);
 }

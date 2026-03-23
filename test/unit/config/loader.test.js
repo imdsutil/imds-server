@@ -384,4 +384,101 @@ describe("config/loader", () => {
       }
     });
   });
+
+  describe("loadConfig - handlers", () => {
+    let tmpDir;
+
+    function setup() {
+      tmpDir = mkdtempSync(join(tmpdir(), "imds-test-"));
+    }
+
+    function teardown() {
+      rmSync(tmpDir, { recursive: true });
+    }
+
+    it("defaults to empty handlers array when no config file", () => {
+      const config = loadConfig({}, cleanEnv);
+      assert.deepEqual(config.handlers, []);
+    });
+
+    it("loads handlers from config file", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(
+          filePath,
+          [
+            "handlers:",
+            "  - command: /usr/bin/aws-handler",
+            "    types:",
+            "      - credentials",
+            "  - command: /usr/bin/fallback",
+            "    types:",
+            "      - credentials",
+            "      - region",
+            "",
+          ].join("\n"),
+        );
+        const config = loadConfig({ config: filePath }, cleanEnv);
+        assert.equal(config.handlers.length, 2);
+        assert.equal(config.handlers[0].command, "/usr/bin/aws-handler");
+        assert.deepEqual(config.handlers[0].types, ["credentials"]);
+        assert.equal(config.handlers[1].command, "/usr/bin/fallback");
+        assert.deepEqual(config.handlers[1].types, ["credentials", "region"]);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("loads handler with timeout override", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(
+          filePath,
+          [
+            "handlers:",
+            "  - command: /usr/bin/slow-handler",
+            "    types:",
+            "      - credentials",
+            "    timeout: 15000",
+            "",
+          ].join("\n"),
+        );
+        const config = loadConfig({ config: filePath }, cleanEnv);
+        assert.equal(config.handlers[0].timeout, 15000);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("rejects invalid handler in config file", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(
+          filePath,
+          ["handlers:", "  - command: /usr/bin/handler", "    types: []", ""].join("\n"),
+        );
+        assert.throws(
+          () => loadConfig({ config: filePath }, cleanEnv),
+          /handlers\[0\]\.types must be a non-empty array/,
+        );
+      } finally {
+        teardown();
+      }
+    });
+
+    it("defaults to empty array when config file has no handlers key", () => {
+      setup();
+      try {
+        const filePath = join(tmpDir, "config.yml");
+        writeFileSync(filePath, "port: 3000\n");
+        const config = loadConfig({ config: filePath }, cleanEnv);
+        assert.deepEqual(config.handlers, []);
+      } finally {
+        teardown();
+      }
+    });
+  });
 });

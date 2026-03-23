@@ -94,11 +94,7 @@ describe("config layer priority (integration)", () => {
       assert.equal(config.logLevel, "warn", "env wins over file");
       assert.equal(config.host, "10.0.0.1", "file wins over default");
       assert.equal(config.tokenTtl, 600, "file wins over default for tokenTtl");
-      assert.equal(
-        config.handlerCommandTimeout,
-        defaults.handlerCommandTimeout,
-        "default used when no override",
-      );
+      assert.equal(config.handlerTimeout, defaults.handlerTimeout, "default used when no override");
     } finally {
       teardown();
     }

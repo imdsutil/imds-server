@@ -21,8 +21,8 @@ describe("config/defaults", () => {
       "tokenTtl",
       "imdsVersion",
       "configFile",
-      "handlerCommand",
-      "handlerCommandTimeout",
+      "handlers",
+      "handlerTimeout",
       "logLevel",
     ];
     assert.deepStrictEqual(Object.keys(defaults).sort(), expectedKeys.sort());
@@ -34,9 +34,9 @@ describe("config/defaults", () => {
     assert.equal(defaults.socket, null);
     assert.equal(defaults.tokenTtl, 21600);
     assert.equal(defaults.imdsVersion, "auto");
-    assert.equal(defaults.configFile, null);
-    assert.equal(defaults.handlerCommand, null);
-    assert.equal(defaults.handlerCommandTimeout, 5000);
+    assert.equal(defaults.configFile, "~/.imds-server.yml");
+    assert.deepEqual(defaults.handlers, []);
+    assert.equal(defaults.handlerTimeout, 5000);
     assert.equal(defaults.logLevel, "info");
   });
 });

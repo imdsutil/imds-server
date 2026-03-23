@@ -1,0 +1,75 @@
+# imds-server configuration
+#
+# Copy this file to ~/.imds-server.yml and adjust as needed.
+# The server loads ~/.imds-server.yml automatically. Override with --config.
+
+# Server listen address. Use 0.0.0.0 to listen on all interfaces.
+# host: 127.0.0.1
+# port: 80
+
+# Or listen on a unix domain socket instead of TCP (mutually exclusive with host/port).
+# socket: /tmp/imds.sock
+
+# IMDSv1, IMDSv2, or auto (accepts both). IMDSv2 requires a token via PUT /latest/api/token.
+# imdsVersion: auto
+
+# Token time-to-live in seconds (1-21600). Only relevant for IMDSv2.
+# tokenTtl: 21600
+
+# Log level: debug, info, warn, error
+# logLevel: info
+
+# Default timeout for handler commands in milliseconds (100-30000).
+# Individual handlers can override this with their own timeout value.
+# handlerTimeout: 5000
+
+# Handlers
+#
+# Each handler is an external command that the server calls to generate
+# responses for IMDS requests. Handlers are called in order -- the first
+# one that handles a request wins.
+#
+# Fields:
+#   command  - path to the executable (script, binary, whatever)
+#   types    - list of IMDS request types this handler responds to
+#   timeout  - optional per-handler timeout in ms (overrides handlerTimeout)
+#
+# Available request types:
+#   credentials       - IAM security credentials (/latest/meta-data/iam/security-credentials/*)
+#   region            - placement region
+#   availability-zone - placement availability zone
+#   instance-id       - instance identity
+#   hostname          - hostname or local-hostname
+#   local-ipv4        - local IPv4 address
+#   public-ipv4       - public IPv4 address
+#   instance-identity - instance identity document (/latest/dynamic/instance-identity/document)
+#
+# How handlers work:
+#
+#   The server calls your command with these arguments:
+#
+#     your-handler \
+#       --path /latest/meta-data/iam/security-credentials/my-role \
+#       --container-id abc123def456 \
+#       --container-name my-app \
+#       --container-labels '{"imds.role":"arn:aws:iam::123456:role/dev"}'
+#
+#   Your handler writes its response to stdout and exits with one of:
+#
+#     exit 0  - handled. stdout becomes the response body.
+#     exit 1  - pass. not my problem, try the next handler.
+#     exit 2  - error. stop the chain, server returns 500.
+#
+# Example:
+#
+# handlers:
+#   - command: /opt/handlers/aws-creds
+#     types:
+#       - credentials
+#     timeout: 10000
+#   - command: /opt/handlers/fallback
+#     types:
+#       - credentials
+#       - region
+#       - instance-id
+handlers: []

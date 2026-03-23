@@ -10,7 +10,7 @@ This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participatin
 
 ### Reporting Bugs
 
-- Check the [existing issues](https://github.com/imds-tools/imds-server/issues) to avoid duplicates
+- Check the [existing issues](https://github.com/imdsutil/imds-server/issues) to avoid duplicates
 - Use the **Bug Report** issue template
 - Include steps to reproduce, expected behavior, and actual behavior
 - Include your Node.js version and operating system

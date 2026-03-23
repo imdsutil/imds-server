@@ -16,13 +16,13 @@ IMDS Server lets you run a local metadata service that mimics cloud provider IMD
 ### npm
 
 ```bash
-npm install -g @imds-tools/imds-server
+npm install -g @imdsutil/imds-server
 ```
 
 ### Docker
 
 ```bash
-docker pull imds-tools/imds-server:latest
+docker pull imdsutil/imds-server:latest
 ```
 
 ## Quick Start
@@ -32,7 +32,7 @@ docker pull imds-tools/imds-server:latest
 imds-server
 
 # Run with Docker
-docker run -p 169.254.169.254:80:80 imds-tools/imds-server:latest
+docker run -p 169.254.169.254:80:80 imdsutil/imds-server:latest
 ```
 
 ## Documentation

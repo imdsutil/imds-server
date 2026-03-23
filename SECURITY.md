@@ -10,7 +10,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please report vulnerabilities via [GitHub's private vulnerability reporting](https://github.com/imds-tools/imds-server/security/advisories/new).
+Instead, please report vulnerabilities via [GitHub's private vulnerability reporting](https://github.com/imdsutil/imds-server/security/advisories/new).
 
 Include the following in your report:
 

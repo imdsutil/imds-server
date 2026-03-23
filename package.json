@@ -1,18 +1,18 @@
 {
-  "name": "@imds-tools/imds-server",
+  "name": "@imdsutil/imds-server",
   "version": "0.0.0",
   "description": "A customizable Instance Metadata Service (IMDS) server for local development and testing",
   "type": "module",
   "license": "Apache-2.0",
-  "author": "imds-tools",
+  "author": "imdsutil",
   "repository": {
     "type": "git",
-    "url": "https://github.com/imds-tools/imds-server.git"
+    "url": "https://github.com/imdsutil/imds-server.git"
   },
   "bugs": {
-    "url": "https://github.com/imds-tools/imds-server/issues"
+    "url": "https://github.com/imdsutil/imds-server/issues"
   },
-  "homepage": "https://github.com/imds-tools/imds-server#readme",
+  "homepage": "https://github.com/imdsutil/imds-server#readme",
   "keywords": [
     "imds",
     "instance-metadata",

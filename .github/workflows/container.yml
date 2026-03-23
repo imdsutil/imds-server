@@ -21,7 +21,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            imds-tools/imds-server
+            imdsutil/imds-server
             ghcr.io/${{ github.repository }}
           tags: |
             type=semver,pattern={{version}}

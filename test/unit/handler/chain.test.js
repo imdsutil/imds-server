@@ -146,6 +146,28 @@ test("HandlerChain: multiple request types are independent", async () => {
   assert.equal(regionResult.stdout, "us-east-1");
 });
 
+test("HandlerChain: per-handler timeout overrides global default", async () => {
+  const { executor, calls } = stubExecutor({
+    "/usr/bin/cmd": { status: "handled", stdout: "", stderr: "", timedOut: false },
+  });
+  const chain = new HandlerChain({ timeout: 5000, executor });
+  chain.register("credentials", "/usr/bin/cmd", { timeout: 15000 });
+
+  await chain.execute("credentials", baseRequest);
+  assert.equal(calls[0].options.timeout, 15000);
+});
+
+test("HandlerChain: falls back to global timeout when no override", async () => {
+  const { executor, calls } = stubExecutor({
+    "/usr/bin/cmd": { status: "handled", stdout: "", stderr: "", timedOut: false },
+  });
+  const chain = new HandlerChain({ timeout: 5000, executor });
+  chain.register("credentials", "/usr/bin/cmd");
+
+  await chain.execute("credentials", baseRequest);
+  assert.equal(calls[0].options.timeout, 5000);
+});
+
 test("HandlerChain: registration order is preserved", async () => {
   const order = [];
   const executor = async (command) => {

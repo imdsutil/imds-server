@@ -29,8 +29,8 @@
   },
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "start": "node src/index.js --port 3333",
+    "dev": "node --watch src/index.js --port 3333",
     "test": "node --test",
     "test:coverage": "node --test --experimental-test-coverage",
     "lint": "eslint .",

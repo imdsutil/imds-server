@@ -96,7 +96,23 @@ if (cliValues.help) {
     });
   };
 
-  const handler = withMiddleware(routingHandler, logger);
+  const containerInfoHandler = async (req) => {
+    // Add container info to req
+    const containerInfo = {
+      id: req.headers["x-container-id"] || "unknown",
+      name: req.headers["x-container-name"] || "unknown",
+      labels: req.headers["x-container-labels"]
+        ? JSON.parse(req.headers["x-container-labels"])
+        : {},
+    };
+    logger.debug("Container info", { containerInfo });
+    req.containerInfo = containerInfo;
+  };
+
+  const handler = withMiddleware(async function (req, res) {
+    await containerInfoHandler(req, res);
+    await routingHandler(req, res);
+  }, logger);
   const { start, close } = createImdsServer(config, handler, logger);
 
   await start();

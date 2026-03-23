@@ -7,6 +7,9 @@ import { createImdsServer } from "./server/create-server.js";
 import { withMiddleware, validateTokenRequirement } from "./server/middleware.js";
 import { Router } from "./server/router.js";
 import { HANDLERS, notFoundHandler } from "./handlers/index.js";
+import { createMetadataHandler } from "./handlers/metadata.js";
+import { HandlerChain } from "./handler/chain.js";
+import { executeHandler } from "./handler/executor.js";
 import { TokenStore } from "./session/token-store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -30,9 +33,8 @@ Options:
   --socket <path>                Unix domain socket path (mutually exclusive with --host/--port)
   --token-ttl <seconds>          Default IMDSv2 token TTL (default: 21600)
   --imds-version <version>       IMDS version: 1, 2, or auto (default: auto)
-  --config <path>                Path to YAML config file
-  --handler-command <cmd>        External command invoked per-request to generate responses
-  --handler-command-timeout <ms> Timeout for handler command in ms (default: 5000)
+  --config <path>                Path to YAML config file (default: ~/.imds-server.yml)
+  --handler-timeout <ms>         Default timeout for handler commands in ms (default: 5000)
   --log-level <level>            Log level: debug, info, warn, error (default: info)
   -h, --help                     Show this help message
   -v, --version                  Show version number
@@ -56,9 +58,25 @@ if (cliValues.help) {
   // Create token store for IMDSv2 session authentication
   const tokenStore = new TokenStore();
 
+  // Build handler chain from configured handlers
+  const chain = new HandlerChain({ timeout: config.handlerTimeout, executor: executeHandler });
+  for (const h of config.handlers) {
+    for (const type of h.types) {
+      chain.register(type, h.command, { timeout: h.timeout });
+    }
+  }
+
+  // Register metadata handler for IMDS paths
+  const metadataHandler = createMetadataHandler(chain);
+  const allHandlers = [
+    ...HANDLERS,
+    { method: "GET", path: "/latest/meta-data", handler: metadataHandler },
+    { method: "GET", path: "/latest/dynamic", handler: metadataHandler },
+  ];
+
   // Create router and routing handler that dispatches requests to registered handlers.
   // Handles 404 (path not found), 405 (method not allowed), and successful routing.
-  const router = new Router(HANDLERS);
+  const router = new Router(allHandlers);
 
   const routingHandler = async (req, res) => {
     // Validate token requirement based on IMDS version mode

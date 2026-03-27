@@ -33,7 +33,7 @@ Options:
   --socket <path>                Unix domain socket path (mutually exclusive with --host/--port)
   --token-ttl <seconds>          Default IMDSv2 token TTL (default: 21600)
   --imds-version <version>       IMDS version: 1, 2, or auto (default: auto)
-  --config <path>                Path to YAML config file (default: ~/.imds-server.yml)
+  --config <path>                Path to YAML config file (default: ~/.imds-server.yaml)
   --handler-timeout <ms>         Default timeout for handler commands in ms (default: 5000)
   --log-level <level>            Log level: debug, info, warn, error (default: info)
   -h, --help                     Show this help message

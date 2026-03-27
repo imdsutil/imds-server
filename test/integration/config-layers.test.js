@@ -18,9 +18,21 @@ describe("config layer priority (integration)", () => {
   }
 
   it("defaults are used when no other sources provide values", () => {
-    const cliValues = parseCli([]);
-    const config = loadConfig(cliValues, {});
-    assert.deepStrictEqual(config, defaults);
+    setup();
+    try {
+      // Use an empty config file to avoid loading ~/.imds-server.yaml on developer machines
+      const configPath = join(tmpDir, "empty.yaml");
+      writeFileSync(configPath, "");
+      const cliValues = parseCli(["--config", configPath]);
+      const config = loadConfig(cliValues, {});
+      // configFile differs since we passed --config explicitly; check all other keys
+      for (const [key, value] of Object.entries(defaults)) {
+        if (key === "configFile") continue;
+        assert.deepStrictEqual(config[key], value, `${key} should equal default`);
+      }
+    } finally {
+      teardown();
+    }
   });
 
   it("config file overrides defaults", () => {

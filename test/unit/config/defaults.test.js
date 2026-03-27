@@ -34,7 +34,7 @@ describe("config/defaults", () => {
     assert.equal(defaults.socket, null);
     assert.equal(defaults.tokenTtl, 21600);
     assert.equal(defaults.imdsVersion, "auto");
-    assert.equal(defaults.configFile, "~/.imds-server.yml");
+    assert.equal(defaults.configFile, "~/.imds-server.yaml");
     assert.deepEqual(defaults.handlers, []);
     assert.equal(defaults.handlerTimeout, 5000);
     assert.equal(defaults.logLevel, "info");

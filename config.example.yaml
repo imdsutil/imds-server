@@ -1,7 +1,7 @@
 # imds-server configuration
 #
-# Copy this file to ~/.imds-server.yml and adjust as needed.
-# The server loads ~/.imds-server.yml automatically. Override with --config.
+# Copy this file to ~/.imds-server.yaml and adjust as needed.
+# The server loads ~/.imds-server.yaml automatically. Override with --config.
 
 # Server listen address. Use 0.0.0.0 to listen on all interfaces.
 # host: 127.0.0.1

@@ -6,7 +6,9 @@ import assert from "node:assert/strict";
 import { parseCli, loadConfig, loadConfigFile } from "../../../src/config/loader.js";
 import defaults from "../../../src/config/defaults.js";
 
-const cleanEnv = {};
+// Suppress default ~/.imds-server.yaml loading so tests are not affected by
+// whatever config the developer has on their machine.
+const cleanEnv = { IMDS_CONFIG_FILE: "/dev/null" };
 
 describe("config/loader", () => {
   describe("parseCli", () => {
@@ -65,7 +67,10 @@ describe("config/loader", () => {
   describe("loadConfig - CLI layer", () => {
     it("returns defaults when no CLI values provided", () => {
       const config = loadConfig({}, cleanEnv);
-      assert.deepStrictEqual(config, defaults);
+      for (const [key, value] of Object.entries(defaults)) {
+        if (key === "configFile") continue;
+        assert.deepStrictEqual(config[key], value, `${key} should equal default`);
+      }
     });
 
     it("returns a frozen object", () => {
@@ -153,7 +158,7 @@ describe("config/loader", () => {
     });
 
     it("reads IMDS_SOCKET from env", () => {
-      const config = loadConfig({}, { IMDS_SOCKET: "/tmp/imds.sock" });
+      const config = loadConfig({}, { ...cleanEnv, IMDS_SOCKET: "/tmp/imds.sock" });
       assert.equal(config.socket, "/tmp/imds.sock");
     });
 
@@ -163,8 +168,11 @@ describe("config/loader", () => {
     });
 
     it("ignores unrelated env vars", () => {
-      const config = loadConfig({}, { SOME_OTHER_VAR: "whatever" });
-      assert.deepStrictEqual(config, defaults);
+      const config = loadConfig({}, { ...cleanEnv, SOME_OTHER_VAR: "whatever" });
+      for (const [key, value] of Object.entries(defaults)) {
+        if (key === "configFile") continue;
+        assert.deepStrictEqual(config[key], value, `${key} should equal default`);
+      }
     });
 
     it("env vars override defaults", () => {
@@ -397,7 +405,7 @@ describe("config/loader", () => {
     }
 
     it("defaults to empty handlers array when no config file", () => {
-      const config = loadConfig({}, cleanEnv);
+      const config = loadConfig({}, { IMDS_CONFIG_FILE: "/dev/null" });
       assert.deepEqual(config.handlers, []);
     });
 

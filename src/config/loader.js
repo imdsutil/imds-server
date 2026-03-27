@@ -30,16 +30,16 @@ export function loadConfigFile(filePath) {
     raw = readFileSync(filePath, "utf8");
   } catch (err) {
     if (err.code === "ENOENT") {
-      throw new Error(`Config file not found: ${filePath}`);
+      throw new Error(`Config file not found: ${filePath}`, { cause: err });
     }
-    throw new Error(`Failed to read config file: ${err.message}`);
+    throw new Error(`Failed to read config file: ${err.message}`, { cause: err });
   }
 
   let parsed;
   try {
     parsed = parseYaml(raw);
   } catch (err) {
-    throw new Error(`Invalid YAML in config file ${filePath}: ${err.message}`);
+    throw new Error(`Invalid YAML in config file ${filePath}: ${err.message}`, { cause: err });
   }
 
   if (parsed === null || parsed === undefined) {

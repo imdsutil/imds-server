@@ -182,3 +182,38 @@ test("HandlerChain: registration order is preserved", async () => {
   await chain.execute("credentials", baseRequest);
   assert.deepEqual(order, ["/usr/bin/first", "/usr/bin/second", "/usr/bin/third"]);
 });
+
+test("HandlerChain: stops the chain on retry", async () => {
+  const { executor, calls } = stubExecutor({
+    "/usr/bin/handler-a": { status: "retry", stdout: "", stderr: "throttled", timedOut: false },
+    "/usr/bin/handler-b": { status: "handled", stdout: "ok", stderr: "", timedOut: false },
+  });
+  const chain = new HandlerChain({ timeout: 5000, executor });
+  chain.register("credentials", "/usr/bin/handler-a");
+  chain.register("credentials", "/usr/bin/handler-b");
+
+  const result = await chain.execute("credentials", baseRequest);
+
+  assert.equal(result.status, "retry");
+  assert.equal(calls.length, 1);
+});
+
+test("HandlerChain: stops the chain on needs-attention", async () => {
+  const { executor, calls } = stubExecutor({
+    "/usr/bin/handler-a": {
+      status: "needs-attention",
+      stdout: "",
+      stderr: "run: aws sso login",
+      timedOut: false,
+    },
+    "/usr/bin/handler-b": { status: "handled", stdout: "ok", stderr: "", timedOut: false },
+  });
+  const chain = new HandlerChain({ timeout: 5000, executor });
+  chain.register("credentials", "/usr/bin/handler-a");
+  chain.register("credentials", "/usr/bin/handler-b");
+
+  const result = await chain.execute("credentials", baseRequest);
+
+  assert.equal(result.status, "needs-attention");
+  assert.equal(calls.length, 1);
+});

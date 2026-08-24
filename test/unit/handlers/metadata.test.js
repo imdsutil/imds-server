@@ -117,3 +117,62 @@ describe("metadata handler", () => {
     assert.equal(chain.calls[0].request.path, "/latest/meta-data/iam/security-credentials/my-role");
   });
 });
+
+function stubLogger() {
+  const entries = [];
+  const record = (level) => (message, extra) => entries.push({ level, message, ...extra });
+  return {
+    entries,
+    debug: record("debug"),
+    info: record("info"),
+    warn: record("warn"),
+    error: record("error"),
+  };
+}
+
+describe("metadata handler status vocabulary", () => {
+  it("returns 503 on retry so the client backs off and tries again", async () => {
+    const chain = stubChain({ status: "retry", stdout: "", stderr: "throttled" });
+    const handler = createMetadataHandler(chain, stubLogger());
+    const req = mockReq("/latest/meta-data/iam/security-credentials/my-role");
+    const res = mockRes();
+
+    await handler(req, res, { pathRemainder: "" });
+
+    assert.equal(res.statusCode, 503);
+  });
+
+  it("returns 404 on needs-attention so the SDK credential chain moves on", async () => {
+    const chain = stubChain({
+      status: "needs-attention",
+      stdout: "",
+      stderr: "run: aws sso login",
+    });
+    const handler = createMetadataHandler(chain, stubLogger());
+    const req = mockReq("/latest/meta-data/iam/security-credentials/my-role");
+    const res = mockRes();
+
+    await handler(req, res, { pathRemainder: "" });
+
+    assert.equal(res.statusCode, 404);
+  });
+
+  it("logs the handler's remediation detail on needs-attention", async () => {
+    const logger = stubLogger();
+    const chain = stubChain({
+      status: "needs-attention",
+      stdout: "",
+      stderr: "run: aws sso login",
+    });
+    const handler = createMetadataHandler(chain, logger);
+    const req = mockReq("/latest/meta-data/iam/security-credentials/my-role");
+    const res = mockRes();
+
+    await handler(req, res, { pathRemainder: "" });
+
+    const warned = logger.entries.find((e) => e.level === "warn");
+    assert.ok(warned, "expected a warn entry");
+    assert.equal(warned.detail, "run: aws sso login");
+    assert.equal(warned.requestType, "credentials");
+  });
+});

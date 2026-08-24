@@ -72,12 +72,32 @@ about headers or HTTP semantics.
 - `1` - not mine. server moves to the next handler in the chain.
 - `2` - error. server stops the chain and returns 500.
 
-That's it. Three rules.
+Those three are the whole contract for a simple handler. A handler that talks to
+a remote service can be more specific about _why_ it failed, which lets the
+server respond differently:
+
+- `3` - retry. transient (throttled, network blip). server returns 503, the
+  status AWS SDKs already back off and retry on.
+- `4` - needs attention. a human must act (expired SSO session, MFA prompt)
+  before this can ever succeed. server logs the remediation from stderr and
+  returns 404, so the client's credential chain moves on cleanly instead of
+  hanging for someone who isn't watching.
+
+Anything other than `1` ends the chain: a handler that claims a request has
+spoken for it. Unrecognised exit codes are treated as `2`.
+
+Write `3` or `4` only when you mean them. `2` is the safe default — retrying a
+malformed role ARN forever buries the real error, and answering 503 to something
+permanent turns a clear failure into a slow one.
 
 ### Timeout
 
 Handlers have a configurable timeout (default 5 seconds, max 30 seconds). If a
 handler doesn't exit in time, the server kills it and treats it as exit code 2.
+A timeout is not automatically transient: the server can't tell a slow network
+from a handler waiting on a person, so it makes no assumption on the handler's
+behalf. A handler that knows it hit a transient limit should catch that itself
+and exit `3` before the timeout fires.
 
 ## Container Labels
 

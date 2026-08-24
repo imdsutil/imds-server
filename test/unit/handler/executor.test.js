@@ -119,3 +119,33 @@ test("executeHandler: treats unexpected exit codes as error", async () => {
 
   assert.strictEqual(result.status, "error");
 });
+
+const exitThreeScript = writeScript("retry-handler.sh", "exit 3");
+const exitFourScript = writeScript("attention-handler.sh", "exit 4");
+const exitFiveScript = writeScript("unknown-handler.sh", "exit 5");
+
+test("executeHandler: returns retry on exit code 3", async () => {
+  const result = await executeHandler(exitThreeScript, baseRequest, { timeout: 5000 });
+
+  assert.strictEqual(result.status, "retry");
+});
+
+test("executeHandler: returns needs-attention on exit code 4", async () => {
+  const result = await executeHandler(exitFourScript, baseRequest, { timeout: 5000 });
+
+  assert.strictEqual(result.status, "needs-attention");
+});
+
+test("executeHandler: treats unrecognised exit codes as error", async () => {
+  const result = await executeHandler(exitFiveScript, baseRequest, { timeout: 5000 });
+
+  assert.strictEqual(result.status, "error");
+});
+
+test("executeHandler: surfaces stderr alongside retry status", async () => {
+  const script = writeScript("retry-detail-handler.sh", 'echo "throttled" >&2\nexit 3');
+  const result = await executeHandler(script, baseRequest, { timeout: 5000 });
+
+  assert.strictEqual(result.status, "retry");
+  assert.strictEqual(result.stderr, "throttled\n");
+});

@@ -4,10 +4,23 @@
 // Exit code contract:
 //   0 - handled: stdout is the response body
 //   1 - pass: handler declined, try the next one in the chain
-//   2 - error: something went wrong, stop the chain
+//   2 - error: permanent for this request as posed, stop the chain
+//   3 - retry: transient, the same request may succeed later
+//   4 - needs-attention: a human must act before this can succeed
 //   Any other code is treated as an error.
+//
+// 2, 3 and 4 all stop the chain but call for different responses: 2 must not
+// be retried, 3 should be, and 4 wants a person rather than another attempt.
 
 import { spawn } from "node:child_process";
+
+const EXIT_STATUS = {
+  0: "handled",
+  1: "pass",
+  2: "error",
+  3: "retry",
+  4: "needs-attention",
+};
 
 /**
  * Execute a handler command with request context passed as CLI args.
@@ -21,6 +34,7 @@ import { spawn } from "node:child_process";
  * @param {object} options
  * @param {number} options.timeout - Max execution time in ms
  * @returns {Promise<{status: string, stdout: string, stderr: string, timedOut?: boolean}>}
+ *   status is one of: handled, pass, error, retry, needs-attention
  */
 export function executeHandler(command, request, options) {
   const { timeout } = options;
@@ -89,13 +103,8 @@ export function executeHandler(command, request, options) {
       // child.exitCode is set after close
       const code = child.exitCode;
 
-      if (code === 0) {
-        resolve({ status: "handled", stdout, stderr, timedOut: false });
-      } else if (code === 1) {
-        resolve({ status: "pass", stdout, stderr, timedOut: false });
-      } else {
-        resolve({ status: "error", stdout, stderr, timedOut: false });
-      }
+      const status = EXIT_STATUS[code] ?? "error";
+      resolve({ status, stdout, stderr, timedOut: false });
     });
   });
 }

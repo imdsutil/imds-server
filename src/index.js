@@ -67,7 +67,7 @@ if (cliValues.help) {
   }
 
   // Register metadata handler for IMDS paths
-  const metadataHandler = createMetadataHandler(chain);
+  const metadataHandler = createMetadataHandler(chain, logger);
   const allHandlers = [
     ...HANDLERS,
     { method: "GET", path: "/latest/meta-data", handler: metadataHandler },

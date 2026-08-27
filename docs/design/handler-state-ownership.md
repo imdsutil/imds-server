@@ -224,6 +224,12 @@ configuration option and the cache cost documented at the config site. Whichever
 we choose, the choice determines the cache key, so it should be settled before
 the cache is implemented.
 
+**Settled: per-binding.** `handler-aws.md` now defaults `sessionName` to
+`imds-server-{role-name}` and documents `{container-name}` as the opt-in for
+per-container attribution, with the coalescing cost stated at the config site.
+The cache key in §1 can be built on the assumption that containers sharing a
+role share a credential.
+
 ## 6. Implementing §3 showed that sniffing cannot carry the detail
 
 §3 has since landed. Doing it surfaced an argument against option (b) that this
@@ -279,7 +285,8 @@ and §4 is abandoned or deferred indefinitely.
 returning `0`, `1`, or `2` keep working unchanged. This has landed.
 
 §1 (cache location) touches no protocol surface — it removes planned handler
-functionality and adds server functionality.
+functionality and adds server functionality. §5 is settled, so its key is
+determined.
 
 §2 (envelope) is breaking and should be versioned. Since `@imdsutil/imds-handler-aws`
 is the only handler in existence and is not yet published, the window for making

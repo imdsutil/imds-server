@@ -161,14 +161,14 @@ For group 3, the role ARN can come from:
 Configurable at the handler level, overridable per container via labels where
 it makes sense:
 
-| Option                | Label                       | Config key        | Default                        |
-| --------------------- | --------------------------- | ----------------- | ------------------------------ |
-| Session name          | —                           | `sessionName`     | `imds-server-{container-name}` |
-| Session duration      | `imds.aws.session-duration` | `sessionDuration` | `3600`                         |
-| External ID           | `imds.aws.external-id`      | `externalId`      | —                              |
-| Role ARN              | `imds.aws.role`             | `defaultRole`     | —                              |
-| STS regional endpoint | —                           | `stsRegion`       | `us-east-1`                    |
-| Custom STS endpoint   | —                           | `stsEndpoint`     | —                              |
+| Option                | Label                       | Config key        | Default                   |
+| --------------------- | --------------------------- | ----------------- | ------------------------- |
+| Session name          | —                           | `sessionName`     | `imds-server-{role-name}` |
+| Session duration      | `imds.aws.session-duration` | `sessionDuration` | `3600`                    |
+| External ID           | `imds.aws.external-id`      | `externalId`      | —                         |
+| Role ARN              | `imds.aws.role`             | `defaultRole`     | —                         |
+| STS regional endpoint | —                           | `stsRegion`       | `us-east-1`               |
+| Custom STS endpoint   | —                           | `stsEndpoint`     | —                         |
 
 ## Credential caching
 
@@ -176,10 +176,33 @@ The handler is spawned per request. Without caching, multiple containers
 requesting credentials simultaneously will each make an STS AssumeRole call.
 STS has rate limits, and round-trip latency adds up.
 
-Handler should cache resolved credentials (keyed on role ARN + profile + caller
-identity) and return cached creds until 5 minutes before expiry. Cache lives in
-a temp file (e.g. `~/.cache/imds-handler-aws/`) so it survives across
-invocations without an in-process cache.
+Credentials are cached keyed on role ARN + profile + caller identity, and served
+until 5 minutes before expiry.
+
+The cache belongs to the server rather than to this handler — see
+`handler-state-ownership.md` §1. A per-request process cannot deduplicate
+against its own siblings, so twelve containers starting together would make
+twelve AssumeRole calls no matter what this handler cached locally.
+
+### Session names are per-binding
+
+The session name is part of what STS records, so it interacts with the cache key
+directly. Two containers that resolve to the same role can share a cached
+credential only if they would have been given the same session name.
+
+The default is therefore per-binding — `imds-server-{role-name}`, derived from
+the role ARN — not per-container. Twelve replicas of one service collapse to a
+single AssumeRole call, which is the burst case the cache exists to solve. The
+cost is that CloudTrail attributes the activity to "this machine, this role"
+rather than to an individual container. On a development machine that is an
+honest description of what happened: the containers being collapsed are the same
+person doing the same work.
+
+`sessionName` accepts `{container-name}` for anyone who wants per-container
+attribution instead. Doing so makes the session name unique per container, which
+makes the cache key unique per container, which means one STS call per container
+and no coalescing. That is a legitimate trade for a shared or audited machine,
+but it should be chosen deliberately rather than inherited from a default.
 
 ## Handler config file
 
@@ -198,8 +221,11 @@ Handler reads its own config from `~/.imds-handler-aws.yml` (auto-loaded) or
 # has opted in via another signal)
 # defaultRole: arn:aws:iam::123456789012:role/dev
 
-# Session name template. {container-name} is replaced at runtime.
-# sessionName: "imds-server-{container-name}"
+# Session name template. {role-name} and {container-name} are replaced at runtime.
+# Defaults to {role-name} so containers sharing a role share one AssumeRole call.
+# Using {container-name} gives per-container CloudTrail attribution at the cost
+# of one STS call per container — see "Session names are per-binding".
+# sessionName: "imds-server-{role-name}"
 
 # Automatically run `aws sso login` when an SSO session is expired.
 # Requires a high timeout on the handler entry in ~/.imds-server.yml (e.g. 120000ms).

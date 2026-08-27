@@ -124,6 +124,10 @@ contract.
 
 _Amended by §6: (b) turns out not to be viable for the failure paths at all._
 
+_**Resolved: (a).** Specified in `handler-envelope.md`. The accepted spec drops
+the `status` field sketched above — exit codes stay authoritative for control
+flow and the envelope carries only detail, so the two cannot disagree._
+
 ## 3. The status vocabulary is too narrow
 
 Current contract:
@@ -264,9 +268,8 @@ and §4 is abandoned or deferred indefinitely.
 
 ## What this note does not decide
 
-- Whether to adopt the envelope (§2a) or the sidecar (§2c). §6 narrows the fork
-  by ruling out sniffing (§2b) for anything but a success-path cache, but does
-  not settle the remaining two.
+- ~~Whether to adopt the envelope (§2a) or the sidecar (§2c).~~ Settled: the
+  envelope, specified in `handler-envelope.md`.
 - Whether the server should pre-warm credentials at container start rather than
   waiting for the first request. Container boot time is the only window in the
   system wide enough to hold a human, which makes it attractive for the SSO case,
@@ -290,4 +293,5 @@ determined.
 
 §2 (envelope) is breaking and should be versioned. Since `@imdsutil/imds-handler-aws`
 is the only handler in existence and is not yet published, the window for making
-it cheaply is now.
+it cheaply is now. Accepted and specified in `handler-envelope.md`; the `v` field
+carries the version.

@@ -67,7 +67,7 @@ if (cliValues.help) {
   }
 
   // Register metadata handler for IMDS paths
-  const metadataHandler = createMetadataHandler(chain);
+  const metadataHandler = createMetadataHandler(chain, logger);
   const allHandlers = [
     ...HANDLERS,
     { method: "GET", path: "/latest/meta-data", handler: metadataHandler },
@@ -79,12 +79,14 @@ if (cliValues.help) {
   const router = new Router(allHandlers);
 
   const routingHandler = async (req, res) => {
-    // Validate token requirement based on IMDS version mode
-    const tokenError = validateTokenRequirement(req, config, tokenStore);
-    if (tokenError) {
-      res.writeHead(tokenError, { "Content-Type": "text/plain" });
-      res.end(tokenError === 401 ? "Unauthorized\n" : "Forbidden\n");
-      return;
+    // Token validation only applies to IMDS paths — non-IMDS paths (e.g. /status) are exempt
+    if (req.url.startsWith("/latest")) {
+      const tokenError = validateTokenRequirement(req, config, tokenStore);
+      if (tokenError) {
+        res.writeHead(tokenError, { "Content-Type": "text/plain" });
+        res.end(tokenError === 401 ? "Unauthorized\n" : "Forbidden\n");
+        return;
+      }
     }
 
     const match = router.match(req.method, req.url);

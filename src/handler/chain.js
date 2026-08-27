@@ -2,7 +2,12 @@
 // them sequentially until one handles the request or an error occurs.
 //
 // Follows the chain of responsibility pattern (like Express middleware).
-// Each handler either handles (exit 0), passes (exit 1), or errors (exit 2).
+// Only "pass" (exit 1) continues the chain — every other outcome is that
+// handler's final answer for the request, so the chain stops there.
+
+// Statuses that end the chain. A handler that claims the request, however it
+// turns out, has spoken for it; later handlers must not second-guess the result.
+const TERMINAL = new Set(["handled", "error", "retry", "needs-attention"]);
 
 export class HandlerChain {
   constructor({ timeout, executor }) {
@@ -21,9 +26,9 @@ export class HandlerChain {
     this.handlers.get(requestType).push({ command, timeout });
   }
 
-  // Execute the handler chain for a request type. Returns the result from
-  // the first handler that handles or errors. Returns { status: "no-handler" }
-  // if no handlers are registered or all handlers pass.
+  // Execute the handler chain for a request type. Returns the result from the
+  // first handler that does anything other than pass. Returns
+  // { status: "no-handler" } if no handlers are registered or all of them pass.
   async execute(requestType, request) {
     const entries = this.handlers.get(requestType);
     if (!entries || entries.length === 0) {
@@ -35,7 +40,7 @@ export class HandlerChain {
         timeout: entry.timeout ?? this.timeout,
       });
 
-      if (result.status === "handled" || result.status === "error") {
+      if (TERMINAL.has(result.status)) {
         return result;
       }
     }

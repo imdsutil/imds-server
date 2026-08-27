@@ -60,6 +60,14 @@
 #     exit 1  - pass. not my problem, try the next handler.
 #     exit 2  - error. stop the chain, server returns 500.
 #
+#   A handler that can tell why it failed may also use:
+#
+#     exit 3  - retry. transient, server returns 503 so the client backs off.
+#     exit 4  - needs attention. a human must act; server logs stderr as the
+#               remediation and returns 404 so the client moves on.
+#
+#   Only exit 1 continues the chain. Unrecognised codes are treated as exit 2.
+#
 # Example:
 #
 # handlers:

@@ -51,7 +51,7 @@ Example:
 my-handler --path /latest/meta-data/iam/security-credentials/my-role \
            --container-id abc123 \
            --container-name my-app \
-           --container-labels '{"imds.role":"arn:aws:iam::123456:role/dev"}'
+           --container-labels '{"imds.aws.role":"arn:aws:iam::123456:role/dev"}'
 ```
 
 stdin piping may be added later for handlers that need to receive larger
@@ -105,19 +105,20 @@ For built-in handlers, the label convention is `imds.*`. The server and proxy
 don't prescribe label names beyond `imds-proxy.enabled` (which is a proxy-side
 concern, not a server concern).
 
-For role/identity mapping, built-in handlers use `imds.role`. The value is
-provider-specific but the concept is the same across clouds: "assume this
-identity for this container."
+For role/identity mapping, built-in handlers namespace the label by provider:
+`imds.<provider>.role`. The concept is the same across clouds ("assume this
+identity for this container"), but each provider gets its own label so a
+container can opt in to more than one handler without collision.
 
 ```bash
 # AWS
-docker run --label imds.role=arn:aws:iam::123456:role/my-role ...
+docker run --label imds.aws.role=arn:aws:iam::123456:role/my-role ...
 
 # GCP
-docker run --label imds.role=my-sa@project.iam.gserviceaccount.com ...
+docker run --label imds.gcp.role=my-sa@project.iam.gserviceaccount.com ...
 
 # Azure
-docker run --label imds.role=/subscriptions/.../my-identity ...
+docker run --label imds.azure.role=/subscriptions/.../my-identity ...
 ```
 
 Custom handlers can use whatever labels they want. The full label set is passed
@@ -127,7 +128,7 @@ through as JSON.
 
 The project will ship working handler implementations for common use cases:
 
-- **AWS STS** - AssumeRole using `imds.role` label value, returns IMDS
+- **AWS STS** - AssumeRole using `imds.aws.role` label value, returns IMDS
   credential format
 - **GCP** - Service account token exchange
 - **Azure** - Managed identity token acquisition
@@ -168,7 +169,7 @@ That's a working credentials handler. `chmod +x`, point the config at it, done.
 # only-handles-prod-role.sh
 
 LABELS="$4"  # container-labels arg
-ROLE=$(echo "$LABELS" | jq -r '.["imds.role"]')
+ROLE=$(echo "$LABELS" | jq -r '.["imds.aws.role"]')
 
 if [ "$ROLE" != "arn:aws:iam::123456:role/prod" ]; then
   exit 1  # not mine

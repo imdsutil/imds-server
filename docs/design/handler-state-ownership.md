@@ -122,6 +122,8 @@ it is the decision in this note I hold most loosely. (b) is a legitimate
 near-term compromise if we want caching before we want a stable third-party
 contract.
 
+_Amended by §6: (b) turns out not to be viable for the failure paths at all._
+
 ## 3. The status vocabulary is too narrow
 
 Current contract:
@@ -222,9 +224,43 @@ configuration option and the cache cost documented at the config site. Whichever
 we choose, the choice determines the cache key, so it should be settled before
 the cache is implemented.
 
+## 6. Implementing §3 showed that sniffing cannot carry the detail
+
+§3 has since landed. Doing it surfaced an argument against option (b) that this
+note did not have when it was written, and it is the strongest one available.
+
+Option (b) reads the expiry out of the response body. Exit codes `3` and `4`
+have no response body. A handler that is being throttled, or that needs an SSO
+login, produced no credentials to render — that is the entire point of the
+status. There is nothing on stdout to sniff.
+
+So the two paths do not merely differ in cleanliness. Sniffing works on the
+success path only, and every piece of structured detail this note asks for on
+the failure paths — the retry-after hint in §3, the remediation command and the
+auth scope in §4 — has no channel under (b) at all.
+
+The implementation made the gap concrete by working around it. Needs-attention
+currently logs the handler's stderr as the remediation string, because stderr is
+the only thing crossing the boundary on a failure. That is serviceable for a
+human reading logs and useless for anything else: it is untyped free text, and
+§4's deduplication has to key on the auth scope. Keying dedup on a substring of
+stderr is not a design anyone would defend.
+
+This does not resolve the fork by itself — (c), the sidecar, still carries
+failure-path metadata, and it was set aside for fiddliness rather than
+incapacity. But it does remove (b) from contention for anything beyond a
+success-path cache. If the SSO story in §4 is wanted, the choice is (a) or (c),
+and (a) is the one that also solves multi-cloud rendering.
+
+**Revised recommendation:** (a), now held considerably less loosely. (b) remains
+viable only if the scope is narrowed to caching successful credential responses
+and §4 is abandoned or deferred indefinitely.
+
 ## What this note does not decide
 
-- Whether to adopt the envelope (§2a) or sniff (§2b) — a real fork.
+- Whether to adopt the envelope (§2a) or the sidecar (§2c). §6 narrows the fork
+  by ruling out sniffing (§2b) for anything but a success-path cache, but does
+  not settle the remaining two.
 - Whether the server should pre-warm credentials at container start rather than
   waiting for the first request. Container boot time is the only window in the
   system wide enough to hold a human, which makes it attractive for the SSO case,
@@ -240,7 +276,7 @@ the cache is implemented.
 ## Compatibility
 
 §3 (status codes) is additive and safe to land immediately: existing handlers
-returning `0`, `1`, or `2` keep working unchanged.
+returning `0`, `1`, or `2` keep working unchanged. This has landed.
 
 §1 (cache location) touches no protocol surface — it removes planned handler
 functionality and adds server functionality.

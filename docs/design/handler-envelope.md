@@ -56,9 +56,16 @@ On a non-zero exit, stdout is the same object without `body`:
 ## The envelope is optional
 
 A handler may write a bare response body instead, exactly as it does today. The
-server decides which it received by one test: **does stdout parse as a JSON
-object with an integer `v` at the top level?** If yes, it is an envelope. If no,
-it is a body and is proxied through untouched.
+server decides which it received by one test: **with leading whitespace
+stripped, does stdout begin with `{`, parse as a JSON object, and carry an
+integer `v` at the top level?** If yes, it is an envelope. If no, it is a body
+and is proxied through untouched.
+
+Stripping leading whitespace first is not cosmetic. A handler that pretty-prints
+its envelope, or emits a leading newline, would otherwise fail the test and have
+its control data relayed to the client as though it were the response — and
+because a bare body is a legitimate outcome, nothing would report it. The
+`{`-first check is a cheap gate before parsing, not the test itself.
 
 `v` is an opt-in switch, not a hint. This is not the content sniffing rejected in
 `handler-state-ownership.md` §2b, which tried to infer meaning from an arbitrary
@@ -75,6 +82,23 @@ to send an envelope and got the JSON slightly wrong would have its control data
 silently relayed to the client as though it were credentials — the worst
 available outcome, and one that would surface as a confusing client error far
 from its cause. Present-but-invalid is a bug, and it is reported as one.
+
+### Detection runs per request type
+
+A request type whose body is arbitrary content does not participate in envelope
+detection at all. Its stdout is a body, unconditionally.
+
+Nothing mapped today is in that category, and no current type collides: the two
+that return JSON objects are `credentials` and `instance-identity`, and neither
+carries a top-level `v`. The identity document is the near miss worth recording
+— it carries `"version": "2017-09-30"`, so the marker being `v` rather than
+`version` is the whole margin. Do not widen the marker later.
+
+The category exists for what comes next. `/latest/user-data` is the obvious
+candidate: its body is whatever the user supplied, frequently JSON, and
+`{"v":1,...}` is a plausible thing for a person to have written. No marker can
+be safe against content the server does not control, so such a type opts out of
+detection rather than gambling on the collision being unlikely.
 
 ### Some request types want an envelope
 

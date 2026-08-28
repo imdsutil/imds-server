@@ -180,14 +180,40 @@ agreement.
 ### `expiresAt` and `cacheKey`
 
 Both are optional and independent. Without `expiresAt` the response is not
-cached. Without `cacheKey` it is cached against the request alone.
+cached.
 
 `cacheKey` exists because only the handler knows what actually determined its
 answer. Two containers with different names and labels may resolve to the same
 role and be able to share one credential; the server cannot know that, and the
-handler cannot deduplicate. So the handler names the equivalence and the server
-enforces it. Per `handler-state-ownership.md` §5, the AWS handler's key is per
-role binding, not per container.
+handler cannot deduplicate. So the handler names the equivalence. Per
+`handler-state-ownership.md` §5, the AWS handler's key is per role binding, not
+per container — twelve replicas of a service share one entry and one AssumeRole
+call.
+
+#### The default is per container
+
+Without `cacheKey`, the response is cached against the full request: the path
+**and** the container id, name and labels the server passed to the handler.
+
+This is narrower than it needs to be and that is the point. A handler that
+forgets to set a key gets a cache that never shares between containers — less
+useful, and harmless. The alternative default, keying on the path alone, would
+mean a forgotten field silently serves one container's credentials to every
+other container asking for the same path. Defaults are what handlers get when
+they were not paying attention, so the default must be the safe one.
+
+#### `cacheKey` is a trust boundary
+
+The server cannot verify the equivalence a key asserts. It has no way to know
+what the handler consulted to produce its answer, which is the entire reason the
+key comes from the handler in the first place. So a key that is too coarse — a
+role name without its account, a role without the profile that assumed it — does
+not fail loudly. It produces a cache that works exactly as designed and hands
+one container credentials minted for another container's identity.
+
+A handler must include everything that varied its answer. When in doubt, include
+more: an over-specific key costs an extra STS call, and an under-specific one
+crosses an identity boundary.
 
 ### `authScope`
 

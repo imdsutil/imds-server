@@ -41,7 +41,7 @@ export class HandlerChain {
       });
 
       if (TERMINAL.has(result.status)) {
-        return result;
+        return { ...result, command: entry.command };
       }
     }
 

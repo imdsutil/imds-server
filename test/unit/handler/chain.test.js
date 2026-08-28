@@ -217,3 +217,17 @@ test("HandlerChain: stops the chain on needs-attention", async () => {
   assert.equal(result.status, "needs-attention");
   assert.equal(calls.length, 1);
 });
+
+test("HandlerChain: reports which command produced the result", async () => {
+  const { executor } = stubExecutor({
+    "/usr/bin/handler-a": { status: "pass", stdout: "", stderr: "", timedOut: false },
+    "/usr/bin/handler-b": { status: "handled", stdout: "ok", stderr: "", timedOut: false },
+  });
+  const chain = new HandlerChain({ timeout: 5000, executor });
+  chain.register("credentials", "/usr/bin/handler-a");
+  chain.register("credentials", "/usr/bin/handler-b");
+
+  const result = await chain.execute("credentials", baseRequest);
+
+  assert.equal(result.command, "/usr/bin/handler-b");
+});

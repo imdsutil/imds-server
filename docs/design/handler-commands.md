@@ -66,6 +66,12 @@ The server sets content-type based on the request type (e.g. `application/json`
 for credentials, `text/plain` for simple values). Handlers don't need to worry
 about headers or HTTP semantics.
 
+A handler that needs to tell the server something _about_ its response — when
+credentials expire, how long to wait before a retry, what a person should run to
+fix an expired login — can wrap it in an envelope instead. The envelope is
+optional and detected by an `imdsEnvelopeVersion` field; a bare body behaves
+exactly as described above. See `handler-envelope.md`.
+
 ### Exit Codes
 
 - `0` - handled. stdout is the response body.

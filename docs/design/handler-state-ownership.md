@@ -292,8 +292,8 @@ functionality and adds server functionality. §5 is settled, so its key is
 determined.
 
 §2 (envelope) was expected to be breaking. As specified in `handler-envelope.md`
-it is not: the envelope is optional, detected by an integer `v` at the top level
-of stdout, and a handler that writes a bare body is proxied through as it is
-today. Versioning rides on `v`. The urgency this note attached to the
+it is not: the envelope is optional, detected by an integer `imdsEnvelope` at the
+top level of stdout, and a handler that writes a bare body is proxied through as
+it is today. That field's value is the format version. The urgency this note attached to the
 unpublished window no longer applies — a handler adopts the envelope when it
 wants something from it.

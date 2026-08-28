@@ -28,7 +28,7 @@ endpoint uses:
 
 ```json
 {
-  "v": 1,
+  "imdsEnvelope": 1,
   "body": {
     "accessKeyId": "ASIA...",
     "secretAccessKey": "...",
@@ -42,12 +42,12 @@ endpoint uses:
 On a non-zero exit, stdout is the same object without `body`:
 
 ```json
-{ "v": 1, "retryAfter": 30 }
+{ "imdsEnvelope": 1, "retryAfter": 30 }
 ```
 
 ```json
 {
-  "v": 1,
+  "imdsEnvelope": 1,
   "remediation": "aws sso login --profile acme-dev",
   "authScope": "sso:acme.awsapps.com/start"
 }
@@ -58,8 +58,8 @@ On a non-zero exit, stdout is the same object without `body`:
 A handler may write a bare response body instead, exactly as it does today. The
 server decides which it received by one test: **with leading whitespace
 stripped, does stdout begin with `{`, parse as a JSON object, and carry an
-integer `v` at the top level?** If yes, it is an envelope. If no, it is a body
-and is proxied through untouched.
+integer `imdsEnvelope` at the top level?** If yes, it is an envelope. If no, it
+is a body and is proxied through untouched.
 
 Stripping leading whitespace first is not cosmetic. A handler that pretty-prints
 its envelope, or emits a leading newline, would otherwise fail the test and have
@@ -67,12 +67,23 @@ its control data relayed to the client as though it were the response — and
 because a bare body is a legitimate outcome, nothing would report it. The
 `{`-first check is a cheap gate before parsing, not the test itself.
 
-`v` is an opt-in switch, not a hint. This is not the content sniffing rejected in
+`imdsEnvelope` is an opt-in switch, not a hint. This is not the content sniffing rejected in
 `handler-state-ownership.md` §2b, which tried to infer meaning from an arbitrary
 credential body. The only thing inferred here is whether the handler chose to
 speak the richer protocol, and it says so with a marker it deliberately wrote.
 
-### Once `v` is present, it binds
+### The marker
+
+`imdsEnvelope` does two jobs in one field: its presence declares the object an
+envelope, and its value is the format version.
+
+The name is deliberately specific to this project. A generic key would put the
+weight of avoiding collisions on how unlikely the collision seemed, which is a
+bet that gets worse as more request types are added and as handlers proxy
+content the server did not author. `imdsEnvelope` appearing by accident in a
+metadata body is not a risk worth reasoning about further.
+
+### Once the marker is present, it binds
 
 An envelope that fails validation is an error. The server does not fall back to
 proxying it as a body.
@@ -90,15 +101,19 @@ detection at all. Its stdout is a body, unconditionally.
 
 Nothing mapped today is in that category, and no current type collides: the two
 that return JSON objects are `credentials` and `instance-identity`, and neither
-carries a top-level `v`. The identity document is the near miss worth recording
-— it carries `"version": "2017-09-30"`, so the marker being `v` rather than
-`version` is the whole margin. Do not widen the marker later.
+carries anything resembling the marker.
+
+An earlier draft named the marker `v`, which made the identity document a near
+miss — it carries `"version": "2017-09-30"`, one rename away from a collision.
+That margin is why the marker is namespaced now rather than short.
 
 The category exists for what comes next. `/latest/user-data` is the obvious
-candidate: its body is whatever the user supplied, frequently JSON, and
-`{"v":1,...}` is a plausible thing for a person to have written. No marker can
-be safe against content the server does not control, so such a type opts out of
-detection rather than gambling on the collision being unlikely.
+candidate: its body is whatever the user supplied, and the server has no
+standing to interpret it at all. A namespaced marker makes an accidental
+collision far-fetched, but "far-fetched" is the wrong standard for content the
+server does not control, and the cost of being wrong is handing a user's own
+data back to them mangled. Such types opt out of detection outright; the marker
+is defence in depth, not the guard.
 
 ### Some request types want an envelope
 
@@ -119,15 +134,15 @@ credential fetch for the lifetime of the process.
 
 ## Fields
 
-| Field         | Type           | When     | Meaning                                                      |
-| ------------- | -------------- | -------- | ------------------------------------------------------------ |
-| `v`           | integer        | always   | Envelope version. Currently `1`.                             |
-| `body`        | object\|string | exit `0` | The response the client receives.                            |
-| `expiresAt`   | string         | optional | RFC 3339. When `body` stops being valid.                     |
-| `cacheKey`    | string         | optional | Opaque. Two requests with the same key may share a response. |
-| `retryAfter`  | number         | exit `3` | Seconds to wait. Advisory; the server may clamp it.          |
-| `remediation` | string         | exit `4` | What a human should run or do.                               |
-| `authScope`   | string         | exit `4` | Opaque. Identifies the thing being unblocked.                |
+| Field          | Type           | When     | Meaning                                                                      |
+| -------------- | -------------- | -------- | ---------------------------------------------------------------------------- |
+| `imdsEnvelope` | integer        | always   | Marks the object as an envelope; value is the format version. Currently `1`. |
+| `body`         | object\|string | exit `0` | The response the client receives.                                            |
+| `expiresAt`    | string         | optional | RFC 3339. When `body` stops being valid.                                     |
+| `cacheKey`     | string         | optional | Opaque. Two requests with the same key may share a response.                 |
+| `retryAfter`   | number         | exit `3` | Seconds to wait. Advisory; the server may clamp it.                          |
+| `remediation`  | string         | exit `4` | What a human should run or do.                                               |
+| `authScope`    | string         | exit `4` | Opaque. Identifies the thing being unblocked.                                |
 
 Unknown fields are ignored, so a later version can add them without a bump.
 
@@ -202,7 +217,7 @@ A handler that wants what the envelope offers wraps its output:
 
 ```bash
 #!/usr/bin/env bash
-printf '{"v":1,"body":%s}' "$(fetch-creds)"
+printf '{"imdsEnvelope":1,"body":%s}' "$(fetch-creds)"
 ```
 
 Four lines instead of three, and only for handlers that want caching or

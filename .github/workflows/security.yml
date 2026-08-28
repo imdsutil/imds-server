@@ -1,10 +1,20 @@
 name: Security
 
+# Docs-only changes are skipped: CodeQL has no source to analyse, dependency
+# review has no manifest to diff, and the container image is unaffected.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - LICENSE
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - LICENSE
   schedule:
     - cron: "0 6 * * 1" # Weekly on Monday at 06:00 UTC
 

@@ -53,6 +53,46 @@ On a non-zero exit, stdout is the same object without `body`:
 }
 ```
 
+## The envelope is optional
+
+A handler may write a bare response body instead, exactly as it does today. The
+server decides which it received by one test: **does stdout parse as a JSON
+object with an integer `v` at the top level?** If yes, it is an envelope. If no,
+it is a body and is proxied through untouched.
+
+`v` is an opt-in switch, not a hint. This is not the content sniffing rejected in
+`handler-state-ownership.md` §2b, which tried to infer meaning from an arbitrary
+credential body. The only thing inferred here is whether the handler chose to
+speak the richer protocol, and it says so with a marker it deliberately wrote.
+
+### Once `v` is present, it binds
+
+An envelope that fails validation is an error. The server does not fall back to
+proxying it as a body.
+
+This is the rule that makes optionality safe. Without it, a handler that meant
+to send an envelope and got the JSON slightly wrong would have its control data
+silently relayed to the client as though it were credentials — the worst
+available outcome, and one that would surface as a confusing client error far
+from its cause. Present-but-invalid is a bug, and it is reported as one.
+
+### Some request types want an envelope
+
+Whether an envelope buys anything is a property of the request type, which the
+server already knows before it spawns the handler.
+
+`instance-id` returns `i-1234567890abcdef0`. There is nothing to cache and one
+possible rendering; wrapping it is ceremony. Bare bodies are the expected form
+and the server says nothing.
+
+`credentials` is different. Without an envelope the server has no expiry, so it
+cannot cache, and no canonical form, so it cannot serve both the EC2 and ECS
+shapes from one handler. The response still works — it is proxied through, and a
+handler that only targets one endpoint is fine forever. But the server logs a
+warning naming the handler and what it is giving up, once per handler and
+request type rather than per request, because the same handler will answer every
+credential fetch for the lifetime of the process.
+
 ## Fields
 
 | Field         | Type           | When     | Meaning                                                      |
@@ -134,32 +174,33 @@ logs that it was unreadable.
 
 ## Cost
 
-The trivial handler now wraps its output:
+A handler that wants what the envelope offers wraps its output:
 
 ```bash
 #!/usr/bin/env bash
 printf '{"v":1,"body":%s}' "$(fetch-creds)"
 ```
 
-Four lines instead of three. That is the whole price for handlers that don't
-care about caching, and it buys a uniform contract for the ones that do.
-
-A handler for a passthrough type is no worse off:
+Four lines instead of three, and only for handlers that want caching or
+multi-endpoint rendering. A handler that wants neither writes what it always
+wrote:
 
 ```bash
 #!/usr/bin/env bash
-printf '{"v":1,"body":"%s"}' "$(cat /etc/machine-id)"
+fetch-creds
 ```
 
 ## Compatibility
 
-Breaking. Every exit-`0` handler must emit an envelope.
+Not breaking. Every handler that works today keeps working, including the
+fixture in `test/fixtures/`, and gains a warning at most.
 
-No handler outside this repository exists, and `@imdsutil/imds-server` is
-unpublished, so the change costs nothing today and cannot be made cheaply after
-publish. That asymmetry is the reason to do it now rather than when the cache
-needs it.
+An earlier draft of this document made the envelope mandatory and leaned on the
+package being unpublished to justify the cost. That argument was sound and is no
+longer needed: a handler adopts the envelope when it wants something the
+envelope provides, and the three-line bash script that
+`handler-commands.md` promises stays three lines.
 
-Deliberately not adopted: accepting either a bare body or an envelope by
-detecting which one arrived. It reintroduces guessing at the exact boundary this
-document exists to remove, and it would have to be supported indefinitely.
+The server carries two input paths permanently as a result. That is the price,
+and it is worth paying — the alternative taxes every trivial handler forever to
+spare the server one branch.
